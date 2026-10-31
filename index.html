@@ -25,7 +25,10 @@
   .row .nm { flex:1; font-size:15px; }
   .step { display:flex; align-items:center; gap:4px; }
   .step button { width:44px; height:44px; border-radius:10px; border:1px solid var(--line); background:#f8faf9; font-size:22px; color:var(--main); }
-  .step input { width:72px; text-align:center; font-size:18px; font-weight:700; padding:8px 4px; }
+  .step input { width:110px; text-align:right; font-size:20px; font-weight:700; padding:10px 12px; }
+  .step .u { color:var(--sub); font-size:14px; width:18px; }
+  .step input::-webkit-outer-spin-button, .step input::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+  .step input { -moz-appearance:textfield; appearance:textfield; }
   .step input.z { color:#b8c2bf; font-weight:400; }
   .btn { display:block; width:100%; padding:15px; border:0; border-radius:12px; background:var(--main); color:#fff; font-size:17px; font-weight:700; }
   .btn.sub { background:#fff; color:var(--main); border:1px solid var(--main); }
@@ -222,13 +225,14 @@ function resetForm(t, rec){
   $('fDate').value = rec ? rec.date : S.init.today;
   $('itemBox').innerHTML = S.init.items.map(function(it){
     var v = rec ? (rec.counts[it.code] || 0) : 0;
-    return '<div class="row"><div class="nm">'+esc(it.name)+'</div><div class="step">' +
-      '<button type="button" data-d="-1" data-c="'+it.code+'">−</button>' +
-      '<input type="number" inputmode="numeric" min="0" id="q_'+it.code+'" value="'+(v||'')+'" placeholder="0">' +
-      '<button type="button" data-d="1" data-c="'+it.code+'">＋</button></div></div>';
+    return '<div class="row"><label class="nm" for="q_'+it.code+'">'+esc(it.name)+'</label><div class="step">' +
+      '<input type="number" inputmode="numeric" pattern="[0-9]*" enterkeyhint="next" min="0" id="q_'+it.code+'" value="'+(v||'')+'" placeholder="0"><span class="u">枚</span></div></div>';
   }).join('');
-  $('itemBox').querySelectorAll('.step button').forEach(function(b){
-    b.onclick = function(){ var i=$('q_'+b.dataset.c); var n=Math.max(0,(Number(i.value)||0)+Number(b.dataset.d)); i.value = n || ''; };
+  // 入力欄でEnter（次へ）を押したら次の品目へ移る
+  var qs = $('itemBox').querySelectorAll('input');
+  qs.forEach(function(inp, k){
+    inp.onfocus = function(){ inp.select(); };
+    inp.onkeydown = function(e){ if (e.key === 'Enter') { e.preventDefault(); if (qs[k+1]) qs[k+1].focus(); else inp.blur(); } };
   });
   $('amenCard').classList.toggle('hidden', t !== 'deli');
   $('amenRows').innerHTML = '';
