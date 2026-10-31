@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>ZTリネン日報</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script src="config.js"></script>
+<style>
+  :root { --main:#0f766e; --main2:#ccfbf1; --bg:#f4f6f5; --line:#dfe5e3; --text:#1d2b28; --sub:#62706c; --warn:#b45309; --red:#c2410c; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { margin:0; font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif; background:var(--bg); color:var(--text); font-size:16px; }
+  header { background:var(--main); color:#fff; padding:12px 16px; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:5; }
+  header h1 { font-size:17px; margin:0; }
+  header small { opacity:.85; font-size:12px; }
+  .tabs { display:flex; background:#fff; border-bottom:1px solid var(--line); position:sticky; top:48px; z-index:4; }
+  .tabs button { flex:1; border:0; background:none; padding:12px 0; font-size:15px; color:var(--sub); border-bottom:3px solid transparent; }
+  .tabs button.on { color:var(--main); border-color:var(--main); font-weight:700; }
+  main { padding:12px 12px 110px; max-width:560px; margin:0 auto; }
+  .card { background:#fff; border-radius:12px; padding:14px; margin-bottom:12px; border:1px solid var(--line); }
+  label.l { display:block; font-size:13px; color:var(--sub); margin-bottom:6px; }
+  input, select, textarea { font-size:16px; padding:10px; border:1px solid var(--line); border-radius:8px; width:100%; background:#fff; color:var(--text); }
+  .row { display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid #eef2f1; }
+  .row:last-child { border-bottom:0; }
+  .row .nm { flex:1; font-size:15px; }
+  .step { display:flex; align-items:center; gap:4px; }
+  .step button { width:44px; height:44px; border-radius:10px; border:1px solid var(--line); background:#f8faf9; font-size:22px; color:var(--main); }
+  .step input { width:72px; text-align:center; font-size:18px; font-weight:700; padding:8px 4px; }
+  .step input.z { color:#b8c2bf; font-weight:400; }
+  .btn { display:block; width:100%; padding:15px; border:0; border-radius:12px; background:var(--main); color:#fff; font-size:17px; font-weight:700; }
+  .btn.sub { background:#fff; color:var(--main); border:1px solid var(--main); }
+  .btn.red { background:#fff; color:var(--red); border:1px solid var(--red); }
+  .btn:disabled { opacity:.5; }
+  .bar { position:fixed; left:0; right:0; bottom:0; background:#fff; border-top:1px solid var(--line); padding:10px 12px calc(10px + env(safe-area-inset-bottom)); z-index:6; }
+  .bar .in { max-width:560px; margin:0 auto; }
+  .warn { background:#fff7ed; color:var(--warn); border:1px solid #fed7aa; border-radius:8px; padding:8px 10px; font-size:14px; margin-top:8px; }
+  .muted { color:var(--sub); font-size:13px; }
+  .am { display:flex; gap:6px; align-items:center; margin-bottom:8px; }
+  .am select { flex:1; font-size:14px; }
+  .am input { width:64px; text-align:center; }
+  .am .x { width:40px; height:40px; border:0; background:none; color:var(--red); font-size:20px; }
+  .hist { padding:10px 0; border-bottom:1px solid #eef2f1; }
+  .hist .top { display:flex; justify-content:space-between; font-weight:700; }
+  .hist .d { font-size:13px; color:var(--sub); margin-top:4px; line-height:1.5; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+  .chip { background:var(--main2); color:#115e59; font-size:12px; padding:3px 8px; border-radius:20px; }
+  .tot { display:grid; grid-template-columns:1fr auto; gap:4px 12px; font-size:14px; }
+  .tot b { text-align:right; }
+  .toast { position:fixed; top:60px; left:50%; transform:translateX(-50%); background:#1d2b28; color:#fff; padding:10px 18px; border-radius:20px; font-size:14px; z-index:20; display:none; }
+  .modal { position:fixed; inset:0; background:rgba(0,0,0,.4); display:none; align-items:flex-end; z-index:30; }
+  .modal .sheet { background:#fff; width:100%; max-height:85vh; overflow:auto; border-radius:16px 16px 0 0; padding:16px 16px calc(16px + env(safe-area-inset-bottom)); }
+  .seg { display:flex; gap:8px; }
+  .seg > * { flex:1; }
+  .hidden { display:none !important; }
+  .loading { text-align:center; padding:40px; color:var(--sub); }
+</style>
+</head>
+<body>
+<header><h1>ZTリネン日報</h1><small id="who"></small></header>
+
+<!-- ログイン -->
+<main id="login">
+  <div class="card">
+    <div id="loginLoading" class="loading">読み込み中…</div>
+    <div id="loginForm" class="hidden">
+      <div id="lgMsg" style="font-weight:700;margin-bottom:10px"></div>
+      <div id="lgIdBox" class="hidden">
+        <label class="l">あなたのLINEユーザーID</label>
+        <input id="lgId" readonly onclick="this.select()">
+        <div style="height:10px"></div>
+        <button class="btn sub" id="lgCopy" type="button">IDをコピー</button>
+        <div style="height:10px"></div>
+      </div>
+      <button class="btn" id="lgRetry" type="button">開き直す</button>
+    </div>
+  </div>
+</main>
+
+<div id="app" class="hidden">
+  <nav class="tabs">
+    <button data-tab="pick">引取り</button>
+    <button data-tab="deli">納品</button>
+    <button data-tab="hist">履歴・集計</button>
+  </nav>
+  <main>
+    <!-- 入力（引取り・納品 共通） -->
+    <section id="form">
+      <div class="card">
+        <div id="formTitle" style="font-weight:700;margin-bottom:10px"></div>
+        <label class="l">日付</label>
+        <input id="fDate" type="date">
+        <div id="dupWarn" class="warn hidden"></div>
+        <div id="editInfo" class="warn hidden"></div>
+      </div>
+      <div class="card" id="itemBox"></div>
+      <div class="card" id="amenCard">
+        <div style="font-weight:700;margin-bottom:8px">アメニティ</div>
+        <div id="amenRows"></div>
+        <button class="btn sub" id="amenAdd" type="button">＋ アメニティを追加</button>
+        <div style="height:14px"></div>
+        <label class="l">人件費交通費（円）</label>
+        <input id="fLabor" type="number" inputmode="numeric">
+      </div>
+      <div class="card">
+        <label class="l">備考（任意）</label>
+        <textarea id="fNote" rows="2"></textarea>
+      </div>
+      <button class="btn red hidden" id="cancelEdit" type="button">修正をやめる</button>
+    </section>
+
+    <!-- 履歴 -->
+    <section id="hist" class="hidden">
+      <div class="card">
+        <div class="seg">
+          <select id="hType"><option value="pick">引取り</option><option value="deli">納品</option></select>
+          <input id="hMonth" type="month">
+        </div>
+      </div>
+      <div class="card"><div style="font-weight:700;margin-bottom:8px">月の合計</div><div id="hTotal" class="tot"></div></div>
+      <div class="card" id="hList"></div>
+    </section>
+  </main>
+  <div class="bar" id="bar"><div class="in"><button class="btn" id="sendBtn">確認して送信</button></div></div>
+</div>
+
+<div class="modal" id="confirm"><div class="sheet">
+  <div style="font-weight:700;font-size:17px;margin-bottom:8px">この内容で送る？</div>
+  <div id="cfBody" class="muted" style="font-size:15px;line-height:1.7;color:var(--text)"></div>
+  <div id="cfReasonBox" class="hidden" style="margin-top:10px">
+    <label class="l">修正理由（必須）</label><input id="cfReason">
+  </div>
+  <div style="height:14px"></div>
+  <div class="seg"><button class="btn sub" id="cfNo">戻る</button><button class="btn" id="cfYes">送信</button></div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var S = { init:null, auth:null, scope:'両方', tab:'pick', editId:null, editType:null, histCache:{} };
+var $ = function(id){ return document.getElementById(id); };
+
+function toast(t){ var e=$('toast'); e.textContent=t; e.style.display='block'; clearTimeout(e._t); e._t=setTimeout(function(){ e.style.display='none'; }, 2500); }
+// GASのAPIを呼ぶ（text/plainで送るとブラウザの事前確認なしで届く）
+var API_MAP = { apiInit:'init', apiList:'list', apiCheckDate:'checkDate', apiSave:'save', apiDelete:'del' };
+function call(fn){
+  var args = Array.prototype.slice.call(arguments, 1);
+  if (args.length && args[0] === S.auth) args.shift(); // 認証はIDトークンで送る
+  return fetch(ZT_CONFIG.API_URL, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: API_MAP[fn], idToken: S.idToken, args: args }) })
+    .then(function(r){ return r.json(); })
+    .catch(function(){ throw '通信エラー。電波を確認してもう一回やってね'; })
+    .then(function(j){
+      if (j.ok) return j.data;
+      if (j.code === 'TOKEN') { try { liff.login({ redirectUri: location.href }); } catch(e) {} }
+      var e = j.error || 'エラー'; S.lastErr = j; throw e;
+    });
+}
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function md(d){ var p=d.split('-'); return Number(p[1])+'/'+Number(p[2]); }
+function yen(n){ return Math.round(n).toLocaleString()+'円'; }
+
+// ---- 起動（LINEログイン） ----
+function showLogin(msg, lineId){
+  $('loginLoading').classList.add('hidden'); $('loginForm').classList.remove('hidden');
+  $('lgMsg').textContent = msg;
+  $('lgIdBox').classList.toggle('hidden', !lineId);
+  if (lineId) $('lgId').value = lineId;
+}
+$('lgRetry').onclick = function(){ location.reload(); };
+$('lgCopy').onclick = function(){
+  var v = $('lgId').value;
+  (navigator.clipboard ? navigator.clipboard.writeText(v) : Promise.reject()).then(function(){ toast('コピーしました'); })
+    .catch(function(){ $('lgId').select(); document.execCommand('copy'); toast('コピーしました'); });
+};
+
+liff.init({ liffId: ZT_CONFIG.LIFF_ID }).then(function(){
+  if (!liff.isLoggedIn()) { liff.login({ redirectUri: location.href }); return; }
+  S.idToken = liff.getIDToken();
+  S.auth = 'line';
+  return call('apiInit', S.auth).then(function(init){ S.init = init; doLogin(init.me); });
+}).catch(function(e){
+  var j = S.lastErr || {};
+  if (j.code === 'UNREGISTERED') return showLogin('まだ入力者に登録されていません。下のIDを大城さんに送ってね', j.lineId);
+  showLogin('エラー：' + (e && e.message ? e.message : e));
+});
+
+function doLogin(r){
+  {
+    S.scope = r.scope;
+    $('who').textContent = r.name;
+    $('login').classList.add('hidden'); $('app').classList.remove('hidden');
+    document.querySelectorAll('.tabs button').forEach(function(b){
+      var t = b.dataset.tab;
+      if ((t === 'pick' && S.scope === '納品') || (t === 'deli' && S.scope === '引取り')) b.classList.add('hidden');
+    });
+    $('hType').innerHTML = (S.scope !== '納品' ? '<option value="pick">引取り</option>' : '') + (S.scope !== '引取り' ? '<option value="deli">納品</option>' : '');
+    $('hMonth').value = S.init.today.slice(0,7);
+    setTab(S.scope === '納品' ? 'deli' : 'pick');
+  }
+}
+
+// ---- タブ ----
+document.querySelectorAll('.tabs button').forEach(function(b){ b.onclick = function(){ setTab(b.dataset.tab); }; });
+function setTab(t){
+  if (S.editId && t !== S.editType && t !== 'hist') clearEdit();
+  S.tab = t;
+  document.querySelectorAll('.tabs button').forEach(function(b){ b.classList.toggle('on', b.dataset.tab === t); });
+  $('form').classList.toggle('hidden', t === 'hist');
+  $('hist').classList.toggle('hidden', t !== 'hist');
+  $('bar').classList.toggle('hidden', t === 'hist');
+  if (t === 'hist') {
+    if (S.lastType && $('hType').querySelector('option[value="'+S.lastType+'"]')) $('hType').value = S.lastType;
+    loadHist(); return;
+  }
+  S.lastType = t;
+  if (!S.editId) resetForm(t);
+}
+
+// ---- 入力フォーム ----
+function resetForm(t, rec){
+  $('formTitle').textContent = t === 'pick' ? '🧺 ' + S.init.base.pickFrom + 'から引取り' : '🏨 ' + S.init.base.deliverTo + 'へ納品';
+  $('fDate').value = rec ? rec.date : S.init.today;
+  $('itemBox').innerHTML = S.init.items.map(function(it){
+    var v = rec ? (rec.counts[it.code] || 0) : 0;
+    return '<div class="row"><div class="nm">'+esc(it.name)+'</div><div class="step">' +
+      '<button type="button" data-d="-1" data-c="'+it.code+'">−</button>' +
+      '<input type="number" inputmode="numeric" min="0" id="q_'+it.code+'" value="'+(v||'')+'" placeholder="0">' +
+      '<button type="button" data-d="1" data-c="'+it.code+'">＋</button></div></div>';
+  }).join('');
+  $('itemBox').querySelectorAll('.step button').forEach(function(b){
+    b.onclick = function(){ var i=$('q_'+b.dataset.c); var n=Math.max(0,(Number(i.value)||0)+Number(b.dataset.d)); i.value = n || ''; };
+  });
+  $('amenCard').classList.toggle('hidden', t !== 'deli');
+  $('amenRows').innerHTML = '';
+  if (rec && rec.amen) rec.amen.forEach(function(a){ addAmen(a.code, a.qty, a.name); });
+  $('fLabor').value = rec ? rec.labor : S.init.base.labor;
+  $('fNote').value = rec ? (rec.note || '') : '';
+  $('editInfo').classList.toggle('hidden', !rec);
+  if (rec) $('editInfo').textContent = '✏️ ' + md(rec.date) + ' の記録を修正中';
+  $('cancelEdit').classList.toggle('hidden', !rec);
+  $('sendBtn').textContent = rec ? '確認して修正' : '確認して送信';
+  checkDup();
+}
+function addAmen(code, qty, name){
+  var d = document.createElement('div'); d.className = 'am';
+  // 今は無効になったアメニティでも、過去の記録を直すときは選択肢に残す
+  var list = S.init.amen.slice();
+  if (code && !list.some(function(a){ return a.code === code; })) list.push({ code:code, name:(name || code) + '（停止中）', unit:'' });
+  d.innerHTML = '<select>' + '<option value="">選んでね</option>' + list.map(function(a){ return '<option value="'+esc(a.code)+'"'+(a.code===code?' selected':'')+'>'+esc(a.name)+(a.unit?'（'+esc(a.unit)+'）':'')+'</option>'; }).join('') + '</select>' +
+    '<input type="number" inputmode="numeric" min="1" value="'+(qty||1)+'"><button class="x" type="button">✕</button>';
+  d.querySelector('.x').onclick = function(){ d.remove(); };
+  $('amenRows').appendChild(d);
+}
+$('amenAdd').onclick = function(){ addAmen(); };
+$('fDate').onchange = checkDup;
+$('cancelEdit').onclick = function(){ clearEdit(); resetForm(S.tab); };
+function clearEdit(){ S.editId = null; S.editType = null; }
+
+function checkDup(){
+  var t = S.tab, d = $('fDate').value;
+  $('dupWarn').classList.add('hidden');
+  if (!d || t === 'hist') return;
+  call('apiCheckDate', S.auth, t, d).then(function(ids){
+    ids = ids.filter(function(i){ return i !== S.editId; });
+    if (ids.length && $('fDate').value === d && S.tab === t) {
+      $('dupWarn').textContent = '⚠️ ' + md(d) + ' はもう' + ids.length + '件入っとるよ。追加で送ると合算されます（直すなら履歴から）';
+      $('dupWarn').classList.remove('hidden');
+    }
+  }).catch(function(){});
+}
+
+function collect(){
+  var counts = {}, lines = [];
+  S.init.items.forEach(function(it){ var n = Number($('q_'+it.code).value) || 0; counts[it.code] = n; if (n) lines.push(it.name + ' <b>' + n + '</b>'); });
+  var amen = [], al = [];
+  if (S.tab === 'deli') {
+    $('amenRows').querySelectorAll('.am').forEach(function(r){
+      var c = r.querySelector('select').value, q = Number(r.querySelector('input').value) || 0;
+      if (c && q > 0) { amen.push({ code:c, qty:q }); al.push(r.querySelector('select').selectedOptions[0].textContent + ' ×' + q); }
+    });
+  }
+  return { id:S.editId, date:$('fDate').value, counts:counts, amen:amen, labor:$('fLabor').value, note:$('fNote').value, _lines:lines, _amen:al };
+}
+
+$('sendBtn').onclick = function(){
+  var p = collect();
+  if (!p.date) return toast('日付を入れてね');
+  if (!p._lines.length && !p._amen.length) return toast('個数が全部0やけん送れんよ');
+  $('cfBody').innerHTML = '<b>' + (S.tab==='pick'?'引取り':'納品') + '　' + md(p.date) + '</b><br>' + (p._lines.join('<br>') || '（リネンなし）') +
+    (p._amen.length ? '<br><br>アメニティ：<br>' + p._amen.map(esc).join('<br>') : '') +
+    (S.tab==='deli' ? '<br>人件費交通費 ' + esc(p.labor) + '円' : '') + (p.note ? '<br>備考：' + esc(p.note) : '');
+  $('cfReasonBox').classList.toggle('hidden', !S.editId); $('cfReason').value = '';
+  $('confirm').style.display = 'flex';
+  S.pending = p;
+};
+$('cfNo').onclick = function(){ $('confirm').style.display = 'none'; };
+$('cfYes').onclick = function(){
+  var p = S.pending; p.reason = $('cfReason').value;
+  if (S.editId && !p.reason) return toast('修正理由を入れてね');
+  $('cfYes').disabled = true;
+  var type = S.tab;
+  call('apiSave', S.auth, type, p).then(function(){
+    $('confirm').style.display = 'none'; $('cfYes').disabled = false;
+    toast(S.editId ? '修正しました ✅' : '送信しました ✅');
+    var wasEdit = !!S.editId; clearEdit();
+    S.histCache = {};
+    if (wasEdit) { S.lastType = type; setTab('hist'); } else resetForm(type);
+  }).catch(function(e){ $('cfYes').disabled = false; toast(e); });
+};
+
+// ---- 履歴 ----
+$('hType').onchange = loadHist; $('hMonth').onchange = loadHist;
+function loadHist(){
+  var t = $('hType').value, ym = $('hMonth').value;
+  if (!t || !ym) return;
+  $('hList').innerHTML = '<div class="loading">読み込み中…</div>'; $('hTotal').innerHTML = '';
+  call('apiList', S.auth, t, ym).then(function(r){
+    S.histCache[t] = r.list;
+    $('hTotal').innerHTML = r.items.map(function(i){ return '<span>'+esc(i.name)+'</span><b>'+(r.total[i.code]||0)+'</b>'; }).join('') +
+      '<span class="muted">件数</span><b class="muted">'+r.list.length+'件</b>';
+    if (!r.list.length) { $('hList').innerHTML = '<div class="muted">この月の記録はまだないよ</div>'; return; }
+    $('hList').innerHTML = r.list.map(function(x, k){
+      var parts = r.items.filter(function(i){ return x.counts[i.code]; }).map(function(i){ return esc(i.name)+' '+x.counts[i.code]; });
+      var am = (x.amen||[]).map(function(a){ return '<span class="chip">'+esc(a.name)+'×'+a.qty+'</span>'; }).join('');
+      return '<div class="hist"><div class="top"><span>'+md(x.date)+'</span><span class="muted">'+esc(x.user)+'</span></div>' +
+        '<div class="d">'+(parts.join('　')||'リネンなし')+(x.note?'<br>📝 '+esc(x.note):'')+'</div>' + (am?'<div class="chips">'+am+'</div>':'') +
+        '<div class="seg" style="margin-top:8px"><button class="btn sub" style="padding:8px;font-size:14px" data-e="'+k+'">修正</button><button class="btn red" style="padding:8px;font-size:14px" data-x="'+k+'">削除</button></div></div>';
+    }).join('');
+    $('hList').querySelectorAll('[data-e]').forEach(function(b){ b.onclick = function(){
+      var rec = S.histCache[t][b.dataset.e];
+      S.editId = rec.id; S.editType = t; S.tab = t;
+      document.querySelectorAll('.tabs button').forEach(function(x){ x.classList.toggle('on', x.dataset.tab === t); });
+      $('form').classList.remove('hidden'); $('hist').classList.add('hidden'); $('bar').classList.remove('hidden');
+      resetForm(t, rec); window.scrollTo(0,0);
+    }; });
+    $('hList').querySelectorAll('[data-x]').forEach(function(b){ b.onclick = function(){
+      var rec = S.histCache[t][b.dataset.x];
+      var why = prompt(md(rec.date) + ' の記録を削除します。理由は？');
+      if (!why) return;
+      call('apiDelete', S.auth, t, rec.id, why).then(function(){ toast('削除しました'); loadHist(); }).catch(toast);
+    }; });
+  }).catch(function(e){ $('hList').innerHTML = '<div class="warn">'+esc(e)+'</div>'; });
+}
+</script>
+</body>
+</html>
